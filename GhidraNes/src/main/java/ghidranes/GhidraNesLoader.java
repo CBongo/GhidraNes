@@ -81,6 +81,8 @@ public class GhidraNesLoader extends AbstractLibrarySupportLoader {
 		}
 		catch (NesRomException e) {
 			// If parsing failed, do not add the load spec
+		} finally {
+			bytes.close();  // clean up after ourselves
 		}
 
 		return loadSpecs;
@@ -127,7 +129,7 @@ public class GhidraNesLoader extends AbstractLibrarySupportLoader {
 		}
 	}
 
-	private Symbol AddVectorEntryPoint(Program program, String vectorLabel, long vectorAddress, String targetLabel)
+	protected Symbol AddVectorEntryPoint(Program program, String vectorLabel, long vectorAddress, String targetLabel)
 		 throws InvalidInputException, MemoryAccessException {
 		AddressSpace addressSpace = program.getAddressFactory().getDefaultAddressSpace();
 		SymbolTable symbolTable = program.getSymbolTable();
@@ -150,7 +152,7 @@ public class GhidraNesLoader extends AbstractLibrarySupportLoader {
 		return vTargetSymbol;
 	}
 
-	private void AddIORegisterLabels(Program program) throws InvalidInputException {
+	protected void AddIORegisterLabels(Program program) throws InvalidInputException {
 		AddressSpace addressSpace = program.getAddressFactory().getDefaultAddressSpace();
 		SymbolTable symbolTable = program.getSymbolTable();
 		
