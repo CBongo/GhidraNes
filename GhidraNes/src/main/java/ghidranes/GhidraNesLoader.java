@@ -110,51 +110,9 @@ public class GhidraNesLoader extends AbstractLibrarySupportLoader {
 		}
 
 		try {
-			AddressSpace addressSpace = program.getAddressFactory().getDefaultAddressSpace();
-			SymbolTable symbolTable = program.getSymbolTable();
-			Memory memory =  program.getMemory();
-
-			Address nmiAddress = addressSpace.getAddress(0xFFFA);
-			Symbol nmiSymbol = symbolTable.createLabel(nmiAddress, "NMI", SourceType.IMPORTED);
-			nmiSymbol.setPinned(true);
-			nmiSymbol.setPrimary();
-			symbolTable.addExternalEntryPoint(nmiAddress);
-
-			Address resAddress = addressSpace.getAddress(0xFFFC);
-			Symbol resSymbol = symbolTable.createLabel(resAddress, "RES", SourceType.IMPORTED);
-			resSymbol.setPinned(true);
-			resSymbol.setPrimary();
-			symbolTable.addExternalEntryPoint(resAddress);
-
-			Address irqAddress = addressSpace.getAddress(0xFFFE);
-			Symbol irqSymbol = symbolTable.createLabel(irqAddress, "IRQ", SourceType.IMPORTED);
-			irqSymbol.setPinned(true);
-			irqSymbol.setPrimary();
-			symbolTable.addExternalEntryPoint(irqAddress);
-
-			byte nmiLo = memory.getByte(nmiAddress);
-			byte nmiHi = memory.getByte(nmiAddress.add(1));
-			long nmi = (Byte.toUnsignedLong(nmiHi) << 8) | Byte.toUnsignedLong(nmiLo);
-			Address nmiTargetAddress = addressSpace.getAddress(nmi);
-
-			byte resLo = memory.getByte(resAddress);
-			byte resHi = memory.getByte(resAddress.add(1));
-			long res = (Byte.toUnsignedLong(resHi) << 8) | Byte.toUnsignedLong(resLo);
-			Address resTargetAddress = addressSpace.getAddress(res);
-
-			byte irqLo = memory.getByte(irqAddress);
-			byte irqHi = memory.getByte(irqAddress.add(1));
-			long irq = (Byte.toUnsignedLong(irqHi) << 8) | Byte.toUnsignedLong(irqLo);
-			Address irqTargetAddress = addressSpace.getAddress(irq);
-
-			Symbol resTargetSymbol = symbolTable.createLabel(resTargetAddress, "reset", SourceType.IMPORTED);
-			symbolTable.addExternalEntryPoint(resTargetAddress);
-
-			Symbol nmiTargetSymbol = symbolTable.createLabel(nmiTargetAddress, "vblank", SourceType.IMPORTED);
-			symbolTable.addExternalEntryPoint(nmiTargetAddress);
-
-			Symbol irqTargetSymbol = symbolTable.createLabel(irqTargetAddress, "irq", SourceType.IMPORTED);
-			symbolTable.addExternalEntryPoint(irqTargetAddress);
+			Symbol nmiTargetSymbol = AddVectorEntryPoint(program, "NMI", 0xFFFA, "vblank");
+			Symbol resTargetSymbol = AddVectorEntryPoint(program, "RES", 0xFFFC, "reset");
+			Symbol irqTargetSymbol = AddVectorEntryPoint(program, "IRQ", 0xFFFE, "irq");
 
 			// RES should have the highest precedence, followed by NMI, followed by IRQ. We set them
 			// as primary in reverse order because the last `.setPrimary()` call has precedence
@@ -162,45 +120,74 @@ public class GhidraNesLoader extends AbstractLibrarySupportLoader {
 			nmiTargetSymbol.setPrimary();
 			resTargetSymbol.setPrimary();
 
-			NesMmio []registers = {
-				new NesMmio(addressSpace, 0x2000, "PPUCTRL"),
-				new NesMmio(addressSpace, 0x2001, "PPUMASK"),
-				new NesMmio(addressSpace, 0x2002, "PPUSTATUS"),
-				new NesMmio(addressSpace, 0x2003, "OAMADDR"),
-				new NesMmio(addressSpace, 0x2004, "OAMDATA"),
-				new NesMmio(addressSpace, 0x2005, "PPUSCROLL"),
-				new NesMmio(addressSpace, 0x2006, "PPUADDR"),
-				new NesMmio(addressSpace, 0x2007, "PPUDATA"),
-				new NesMmio(addressSpace, 0x4000, "SQ1_VOL"),
-				new NesMmio(addressSpace, 0x4001, "SQ1_SWEEP"),
-				new NesMmio(addressSpace, 0x4002, "SQ1_LO"),
-				new NesMmio(addressSpace, 0x4003, "SQ1_HI"),
-				new NesMmio(addressSpace, 0x4004, "SQ2_VOL"),
-				new NesMmio(addressSpace, 0x4005, "SQ2_SWEEP"),
-				new NesMmio(addressSpace, 0x4006, "SQ2_LO"),
-				new NesMmio(addressSpace, 0x4007, "SQ2_HI"),
-				new NesMmio(addressSpace, 0x4008, "TRI_LINEAR"),
-				new NesMmio(addressSpace, 0x400a, "TRI_LO"),
-				new NesMmio(addressSpace, 0x400b, "TRI_HI"),
-				new NesMmio(addressSpace, 0x400c, "NOISE_VOL"),
-				new NesMmio(addressSpace, 0x400e, "NOISE_LO"),
-				new NesMmio(addressSpace, 0x400f, "NOISE_HI"),
-				new NesMmio(addressSpace, 0x4010, "DMC_FREQ"),
-				new NesMmio(addressSpace, 0x4011, "DMC_RAW"),
-				new NesMmio(addressSpace, 0x4012, "DMC_START"),
-				new NesMmio(addressSpace, 0x4013, "DMC_LEN"),
-				new NesMmio(addressSpace, 0x4014, "OAMDMA"),
-				new NesMmio(addressSpace, 0x4015, "SND_CHN"),
-				new NesMmio(addressSpace, 0x4016, "JOY1"),
-				new NesMmio(addressSpace, 0x4017, "JOY2"),
-			};
-			for (int i = 0; i < registers.length; i++) {
-				Symbol s = symbolTable.createLabel(registers[i].address, registers[i].name, SourceType.IMPORTED);
-				s.setPinned(true);
-			}
-
+			AddIORegisterLabels(program);
 		} catch (InvalidInputException | AddressOutOfBoundsException | MemoryAccessException e) {
 			throw new RuntimeException(e);
+		}
+	}
+
+	private Symbol AddVectorEntryPoint(Program program, String vectorLabel, long vectorAddress, String targetLabel)
+		 throws InvalidInputException, MemoryAccessException {
+		AddressSpace addressSpace = program.getAddressFactory().getDefaultAddressSpace();
+		SymbolTable symbolTable = program.getSymbolTable();
+		Memory memory =  program.getMemory();
+
+		Address vAddress = addressSpace.getAddress(vectorAddress);
+		Symbol vSymbol = symbolTable.createLabel(vAddress, vectorLabel, SourceType.IMPORTED);
+		vSymbol.setPinned(true);
+		vSymbol.setPrimary();
+		symbolTable.addExternalEntryPoint(vAddress);
+
+		byte vecLo = memory.getByte(vAddress);
+		byte vecHi = memory.getByte(vAddress.add(1));
+		long vec = (Byte.toUnsignedLong(vecHi) << 8) | Byte.toUnsignedLong(vecLo);
+		Address vTargetAddress = addressSpace.getAddress(vec);
+
+		Symbol vTargetSymbol = symbolTable.createLabel(vTargetAddress, targetLabel, SourceType.IMPORTED);
+		symbolTable.addExternalEntryPoint(vTargetAddress);
+
+		return vTargetSymbol;
+	}
+
+	private void AddIORegisterLabels(Program program) throws InvalidInputException {
+		AddressSpace addressSpace = program.getAddressFactory().getDefaultAddressSpace();
+		SymbolTable symbolTable = program.getSymbolTable();
+		
+		NesMmio []registers = {
+			new NesMmio(addressSpace, 0x2000, "PPUCTRL"),
+			new NesMmio(addressSpace, 0x2001, "PPUMASK"),
+			new NesMmio(addressSpace, 0x2002, "PPUSTATUS"),
+			new NesMmio(addressSpace, 0x2003, "OAMADDR"),
+			new NesMmio(addressSpace, 0x2004, "OAMDATA"),
+			new NesMmio(addressSpace, 0x2005, "PPUSCROLL"),
+			new NesMmio(addressSpace, 0x2006, "PPUADDR"),
+			new NesMmio(addressSpace, 0x2007, "PPUDATA"),
+			new NesMmio(addressSpace, 0x4000, "SQ1_VOL"),
+			new NesMmio(addressSpace, 0x4001, "SQ1_SWEEP"),
+			new NesMmio(addressSpace, 0x4002, "SQ1_LO"),
+			new NesMmio(addressSpace, 0x4003, "SQ1_HI"),
+			new NesMmio(addressSpace, 0x4004, "SQ2_VOL"),
+			new NesMmio(addressSpace, 0x4005, "SQ2_SWEEP"),
+			new NesMmio(addressSpace, 0x4006, "SQ2_LO"),
+			new NesMmio(addressSpace, 0x4007, "SQ2_HI"),
+			new NesMmio(addressSpace, 0x4008, "TRI_LINEAR"),
+			new NesMmio(addressSpace, 0x400a, "TRI_LO"),
+			new NesMmio(addressSpace, 0x400b, "TRI_HI"),
+			new NesMmio(addressSpace, 0x400c, "NOISE_VOL"),
+			new NesMmio(addressSpace, 0x400e, "NOISE_LO"),
+			new NesMmio(addressSpace, 0x400f, "NOISE_HI"),
+			new NesMmio(addressSpace, 0x4010, "DMC_FREQ"),
+			new NesMmio(addressSpace, 0x4011, "DMC_RAW"),
+			new NesMmio(addressSpace, 0x4012, "DMC_START"),
+			new NesMmio(addressSpace, 0x4013, "DMC_LEN"),
+			new NesMmio(addressSpace, 0x4014, "OAMDMA"),
+			new NesMmio(addressSpace, 0x4015, "SND_CHN"),
+			new NesMmio(addressSpace, 0x4016, "JOY1"),
+			new NesMmio(addressSpace, 0x4017, "JOY2"),
+		};
+		for (int i = 0; i < registers.length; i++) {
+			Symbol s = symbolTable.createLabel(registers[i].address, registers[i].name, SourceType.IMPORTED);
+			s.setPinned(true);
 		}
 	}
 
