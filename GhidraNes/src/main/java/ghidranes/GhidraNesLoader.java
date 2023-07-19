@@ -112,24 +112,20 @@ public class GhidraNesLoader extends AbstractLibrarySupportLoader {
 		}
 
 		try {
-			Symbol nmiTargetSymbol = AddVectorEntryPoint(program, "NMI", 0xFFFA, "vblank");
-			Symbol resTargetSymbol = AddVectorEntryPoint(program, "RES", 0xFFFC, "reset");
-			Symbol irqTargetSymbol = AddVectorEntryPoint(program, "IRQ", 0xFFFE, "irq");
-
 			// RES should have the highest precedence, followed by NMI, followed by IRQ. We set them
 			// as primary in reverse order because the last `.setPrimary()` call has precedence
-			irqTargetSymbol.setPrimary();
-			nmiTargetSymbol.setPrimary();
-			resTargetSymbol.setPrimary();
-
-			AddIORegisterLabels(program);
+			addVectorEntryPoint(program, "IRQ", 0xFFFE, "irq");
+			addVectorEntryPoint(program, "NMI", 0xFFFA, "vblank");
+			addVectorEntryPoint(program, "RES", 0xFFFC, "reset");
+			
+			addIORegisterLabels(program);
 		} catch (InvalidInputException | AddressOutOfBoundsException | MemoryAccessException e) {
 			throw new RuntimeException(e);
 		}
 	}
 
-	protected Symbol AddVectorEntryPoint(Program program, String vectorLabel, long vectorAddress, String targetLabel)
-		 throws InvalidInputException, MemoryAccessException {
+	protected void addVectorEntryPoint(Program program, String vectorLabel, long vectorAddress, String targetLabel)
+		 			throws InvalidInputException, MemoryAccessException {
 		AddressSpace addressSpace = program.getAddressFactory().getDefaultAddressSpace();
 		SymbolTable symbolTable = program.getSymbolTable();
 		Memory memory =  program.getMemory();
@@ -148,10 +144,10 @@ public class GhidraNesLoader extends AbstractLibrarySupportLoader {
 		Symbol vTargetSymbol = symbolTable.createLabel(vTargetAddress, targetLabel, SourceType.IMPORTED);
 		symbolTable.addExternalEntryPoint(vTargetAddress);
 
-		return vTargetSymbol;
+		vTargetSymbol.setPrimary();
 	}
 
-	protected void AddIORegisterLabels(Program program) throws InvalidInputException {
+	protected void addIORegisterLabels(Program program) throws InvalidInputException {
 		AddressSpace addressSpace = program.getAddressFactory().getDefaultAddressSpace();
 		SymbolTable symbolTable = program.getSymbolTable();
 		
@@ -198,7 +194,24 @@ public class GhidraNesLoader extends AbstractLibrarySupportLoader {
 			DomainObject domainObject, boolean isLoadIntoProgram) {
 		List<Option> list =
 			super.getDefaultOptions(provider, loadSpec, domainObject, isLoadIntoProgram);
+
+		// general options
 		list.add(new Option(OPTION_NAME_MIRROR, Boolean.class));
+
+		// identify ROM-specific options based on NES header info
+		try {
+			InputStream bytes = provider.getInputStream(0);
+			NesRomHeader header = new NesRomHeader(bytes);
+
+			int mapper = header.getMapper();
+			int prgRomSize = header.getPrgRomSizeBytes();
+			int chrRomSize = header.getChrRomSizeBytes();
+
+
+		} catch (Exception e) {
+			// ignore errors - no extra options in this case
+		}
+
 		return list;
 	}
 
