@@ -15,10 +15,9 @@ import ghidranes.util.MemoryBlockDescription;
 public class MMC1Mapper extends NesMapper {
 	@Override
 	public void updateMemoryMapForRom(NesRom rom, Program program, TaskMonitor monitor) throws LockException, MemoryConflictException, AddressOverflowException, CancelledException, DuplicateNameException {
-		int sramPermissions =
-			MemoryBlockDescription.READ | MemoryBlockDescription.WRITE | MemoryBlockDescription.EXECUTE;
-		MemoryBlockDescription.uninitialized(0x6000, 0x2000, "SRAM", sramPermissions, false)
-			.create(program);
+		addPrgRamMapping(program, rom);
+
+		create16KBanks(program, rom, monitor, true);
 
 		for (int bank = 0; bank * 0x4000 < rom.prgRom.length; bank++) {
 			int romPermissions = MemoryBlockDescription.READ | MemoryBlockDescription.EXECUTE;
