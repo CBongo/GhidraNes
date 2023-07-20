@@ -15,13 +15,10 @@ import ghidranes.util.MemoryBlockDescription;
 // TODO: Mapper 019 has some writable registers mapped at 0x8000-0xFFFF,
 // which aren't currently handled
 
-public class Mapper019 extends NesMapper {
+public class MMC3Mapper extends NesMapper {
 	@Override
 	public void updateMemoryMapForRom(NesRom rom, Program program, TaskMonitor monitor) throws LockException, MemoryConflictException, AddressOverflowException, CancelledException, DuplicateNameException {
-		int sramPermissions =
-			MemoryBlockDescription.READ | MemoryBlockDescription.WRITE | MemoryBlockDescription.EXECUTE;
-		MemoryBlockDescription.uninitialized(0x6000, 0x2000, "SRAM", sramPermissions, false)
-			.create(program);
+		addPrgRamMapping(program, rom, 0x6000, 0x2000);
 
 		int bank = 0;
 		for (bank = 0; (bank + 1) * 0x2000 < rom.prgRom.length; bank++) {
