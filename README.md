@@ -86,6 +86,23 @@ By default, ROMs with PRG block sizes of less than 32K are created with a base a
 3. Select the blue cross icon ("Move a block to another address") in the title bar of the Memory Map window.
 4. Change the "New Start Address" to the correct base address.  The "New End Address" should automatically update for you based on the block size.
 5. Select "OK" and the bank will be updated.
+> Note: Any write instruction (e.g. `STA`/`STX`/'STY', `INC`/`DEC`) to a mapper register will cause control flow to change if the bank containing the currently-executing code is switched out. To fix these:
+>
+> 1. Right-click the write instruction
+> 2. Choose `Fallthrough`>`Set...`
+> 3. Remember the value in the address offset box
+> 4. Select `User`, and choose the new bank from the dropdown.
+> 5.  Set the address offset box to the value from step 3 (since the PC will still be the "next" instruction in the new bank).
+>
+>This should help with analysis and decompilation so they can "follow" the bank switch.
+
+By default, ROMs with PRG block sizes of less than 32K are created with a base address of `0x8000` except for the last bank, which will be at the "highest" address for that bank (8K blocks will be at `0xe000`, 16K at `0xc000`).  You can use the `Options...` dialog at load time to set each bank's address if you know in advance where each bank should be.  If you later determine that the guess was wrong and you don't want to re-import the ROM, you can re-base the bank using the Memory Map window:
+
+1. Select menu `Window`>`Memory Map` if you don't have it open already.
+2. Select the row with the bank you want to change.
+3. Select the blue cross icon ("Move a block to another address") in the title bar of the Memory Map window.
+4. Change the "New Start Address" to the correct base address.  The "New End Address" should automatically update for you based on the block size.
+5. Select "OK" and the bank will be updated.
 
 ## Development
 
