@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import ghidra.app.util.Option;
+import ghidra.app.util.OptionUtils;
 import ghidra.framework.store.LockException;
 import ghidra.program.model.address.AddressOverflowException;
 import ghidra.program.model.address.AddressSpace;
@@ -26,11 +27,15 @@ import ghidranes.mappers.NesMapper;
 import ghidranes.util.Bank;
 import ghidranes.util.BankAddressOption;
 import ghidranes.util.ChrBankOption;
+import ghidranes.util.MemoryBlockDescription;
 import ghidranes.util.NesMmio;
 
 public class NesRom {
 	private static final int TRAINER_SIZE = 512;
 	private static final String CHR_BANK_OPTION_NAME = "CHR ROM handling";
+
+	private static final String TRAINER_OPTION_NAME = "Map trainer data";
+	private static final boolean TRAINER_OPTION_DEFAULT = true;
 
 	public NesRomHeader header;
 	public byte[] trainer;
@@ -79,6 +84,11 @@ public class NesRom {
     public List<Option> getLoadOptions() {
 		List<Option> list = new ArrayList<>();
 
+		if (trainer != null) {
+			// add trainer option
+			list.add(new Option(TRAINER_OPTION_NAME, TRAINER_OPTION_DEFAULT));
+		}
+
 		// skip bank options if there is only one bank or bank size is 32k
 		// TODO: this might actually belong in the mapper class
 		// TODO: use fancy heuristics to guess the right base address for each bank
@@ -116,6 +126,14 @@ public class NesRom {
 		mapper.setPrgBankCount(prgBankCount);
 		mapper.mapPrgRom(this, program, monitor);
 		mapper.mapChrRom(this, program, monitor, options);
+
+		if (trainer != null && OptionUtils.getBooleanOptionValue(TRAINER_OPTION_NAME, options, TRAINER_OPTION_DEFAULT)) {
+			// map trainer data
+			int trainerPermissions = MemoryBlockDescription.READ | MemoryBlockDescription.EXECUTE;
+			MemoryBlockDescription.initialized(0x7000, TRAINER_SIZE, "TRAINER", trainerPermissions, trainer, false, monitor)
+				.create(program);
+			Msg.info("NesRom", "Mapped trainer data at 0x7000");
+		}
 		mapMMIO(program, monitor, mapper);
 		mapper.mapVectors(program, monitor);
 	}
