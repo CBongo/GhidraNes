@@ -31,3 +31,17 @@ else {
 	throw GradleException("GHIDRA_INSTALL_DIR is not defined!")
 }
 //----------------------END "DO NOT MODIFY" SECTION-------------------------------
+sourceSets {
+    main {
+        java {
+            srcDirs = ['src/main/java']
+            srcDirs += "$buildDir/generated/sources/annotationProcessor/java/main"
+        }
+    }
+}
+
+dependencies {
+    implementation project(":ghidranes-processor")
+	annotationProcessor project(":ghidranes-processor")
+}
+

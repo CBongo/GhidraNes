@@ -13,11 +13,37 @@ import ghidra.util.exception.CancelledException;
 import ghidra.util.exception.DuplicateNameException;
 import ghidra.util.task.TaskMonitor;
 import ghidranes.NesRom;
+import ghidranes.util.AutoRegister;
 import ghidranes.util.Bank;
 import ghidranes.util.MemoryBlockDescription;
 import ghidranes.util.NesMmio;
 
+@AutoRegister
 public class MMC3Mapper extends NesMapper {
+	public static boolean handlesMapper(int mapperNumber) {
+		switch (mapperNumber) {
+			// 8K bankable PRG ROM
+			case 4:		// MMC3 - TxROM
+			case 18:	// Jaleco SS 88006
+			case 19:	// Namco 163
+			case 21,22,23,25:	// Konami VRC2/4
+			case 64:	// RAMBO-1
+			case 65:
+			case 69:	// Sunsoft FME-7/5B
+			case 74:
+			case 76:	// Namco 109 variant
+			case 88,95:
+			case 118:	// MMC3 - TxSROM
+			case 119:	// MMC3 - TQROM
+			case 154,158,191,192,194,195:
+			case 206:	// DxROM
+			case 207:
+						return true;
+			default:
+				return false;
+		}
+	}
+
 	@Override
 	public void mapPrgRom(NesRom rom, Program program, TaskMonitor monitor) throws LockException, MemoryConflictException, AddressOverflowException, CancelledException, DuplicateNameException {
 		/*

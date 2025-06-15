@@ -13,8 +13,23 @@ import ghidra.util.task.TaskMonitor;
 import ghidranes.NesRom;
 import ghidranes.util.Bank;
 import ghidranes.util.MemoryBlockDescription;
+import ghidranes.util.AutoRegister;
 
+@AutoRegister
 public class NromMapper extends NesMapper {
+	public static boolean handlesMapper(int mapperNumber) {
+		switch (mapperNumber) {
+			// 16K or 32K fixed PRG ROM
+			case 0:   	// NROM
+			case 3:   	// CNROM
+			case 13:	// CPROM
+			case 185:
+				return true;
+			default:
+				return false;
+		}
+	}
+
 	@Override
 	public void mapPrgRom(NesRom rom, Program program, TaskMonitor monitor) throws LockException, MemoryConflictException, AddressOverflowException, CancelledException, DuplicateNameException {
 		// TODO: Do we always want to include work RAM?

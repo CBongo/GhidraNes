@@ -1,5 +1,6 @@
 package ghidranes.mappers;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -33,6 +34,7 @@ import ghidranes.util.Bank;
 import ghidranes.util.BankAddressOption;
 import ghidranes.util.ChrBankOption;
 import ghidranes.util.MemoryBlockDescription;
+import ghidranes.util.NesMapperRegistry;
 import ghidranes.util.NesMmio;
 
 public abstract class NesMapper {
@@ -43,6 +45,14 @@ public abstract class NesMapper {
 	protected int prgBankCount;
 
 	protected Map<String, Integer> prgBankAddresses;
+
+	// default constructor so subclasses don't freak out
+	public NesMapper() {
+	}
+
+	public NesMapper(int mapperNum) {
+		this.mapperNum = mapperNum;
+	}
 
 	public Map<String, Integer> getPrgBankAddresses() {
 		return prgBankAddresses;
@@ -75,59 +85,35 @@ public abstract class NesMapper {
 		this.mapperNum = mapperNum;
 	}
 
+	public int getMapper() {
+		return mapperNum;
+	}
+
 	public static NesMapper getMapper(int mapperNum) throws UnimplementedNesMapperException {
 		// Mappers are grouped by where, not how, they map PRG ROM.
 		// So even though MMC3 and VRC2 may use different registers to
 		// bank switch, because they organize them as 8K blocks, we
 		// can treat them the same here.
+		NesMapper mapper = null;
 
-		NesMapper mapper;
-		switch (mapperNum) {
-			// 16K or 32K fixed PRG ROM
-		case 0:   	// NROM
-		case 3:   	// CNROM
-		case 13:	// CPROM
-		case 185:
-			mapper = new NromMapper();
-			break;
-
-			// 16K bankable PRG ROM
-		case 1:		// MMC1 - SxROM
-		case 2:		// UxROM
-		case 10:	// MMC4 - FxROM
-		case 16,30,67,68:
-			mapper = new MMC1Mapper();
-			break;
-		
-			// 32K bankable PRG ROM
-		case 7:   	// AxROM
-		case 11:	//  ColorDreams
-		case 34:	// BNROM, NINA-001
-		case 38:
-		case 66:  	// GxROM
-		case 140:
-			mapper = new AxROMMapper();
-			break;
-
-			// 8K bankable PRG ROM
-		case 4:		// MMC3 - TxROM
-		case 18:	// Jaleco SS 88006
-		case 19:	// Namco 163
-		case 21,22,23,25:	// Konami VRC2/4
-		case 64:	// RAMBO-1
-		case 65:
-		case 69:	// Sunsoft FME-7/5B
-		case 74:
-		case 76:	// Namco 109 variant
-		case 88,95:
-		case 118:	// MMC3 - TxSROM
-		case 119:	// MMC3 - TQROM
-		case 154,158,191,192,194,195:
-		case 206:	// DxROM
-		case 207:
-			mapper = new MMC3Mapper();
-			break;
-
+		try {
+			for (Class<? extends NesMapper> clazz : NesMapperRegistry.getAll()) {
+				Msg.info("NesMapper", "Checking if " + clazz.getSimpleName() + " handles mapper number: " + mapperNum);
+				if ((boolean) clazz.getMethod("handlesMapper", int.class).invoke(null, mapperNum)) {
+					// Found the handler class!
+					mapper = clazz.getDeclaredConstructor().newInstance();
+					break; // exit loop after finding the first matching mapper
+				}
+			}
+		} catch (NoSuchMethodException | SecurityException | InstantiationException 
+				| IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
+			Msg.error("NesMapper", "Error getting mapper class for mapper number: " + mapperNum, e);
+			throw new UnimplementedNesMapperException(mapperNum);
+		}
+		if (mapper == null) {
+			Msg.error("NesMapper", "No mapper found for mapper number: " + mapperNum);
+			throw new UnimplementedNesMapperException(mapperNum);
+		}
 			// 8K/16K bankable PRG ROM
 		//case 24,26:	// Konami VRC6
 		//	mapper = new VRC6Mapper();
@@ -136,11 +122,7 @@ public abstract class NesMapper {
 			// 8K, 16K, or 8K/16K bankable PRG ROM
 		//case 5:	// MMC5 - ExROM
 		//	mapper = new MMC5Mapper();
-		
 
-		default:
-			throw new UnimplementedNesMapperException(mapperNum);
-		}
 		mapper.setMapper(mapperNum);
 		Msg.info("NesMapper", "Created mapper: " + mapper.getClass().getSimpleName() + " for mapper number: " + mapperNum);
 		return mapper;

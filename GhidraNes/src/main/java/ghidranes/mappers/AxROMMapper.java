@@ -10,10 +10,27 @@ import ghidra.util.exception.CancelledException;
 import ghidra.util.exception.DuplicateNameException;
 import ghidra.util.task.TaskMonitor;
 import ghidranes.NesRom;
+import ghidranes.util.AutoRegister;
 import ghidranes.util.Bank;
 import ghidranes.util.MemoryBlockDescription;
 
+@AutoRegister
 public class AxROMMapper extends NesMapper {
+	public static boolean handlesMapper(int mapperNumber) {
+        switch (mapperNumber) {
+			// 32K bankable PRG ROM
+			case 7:   	// AxROM
+			case 11:	//  ColorDreams
+			case 34:	// BNROM, NINA-001
+			case 38:
+			case 66:  	// GxROM
+			case 140:
+				return true;
+			default:
+				return false;
+		}
+    }
+
 	@Override
 	public void mapPrgRom(NesRom rom, Program program, TaskMonitor monitor) throws LockException, MemoryConflictException, AddressOverflowException, CancelledException, DuplicateNameException {
 		if (rom.header.getHasPersistence() || (rom.header.getPrgRamSizeBytes() > 0)) {

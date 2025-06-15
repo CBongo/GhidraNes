@@ -69,3 +69,8 @@ dist
 .worksheet
 
 .vscode
+
+# This file is built as part of build process
+lib/ghidranes-processor-*.jar
+lib/ghidranes/util/AutoRegister.class
+lib/ghidranes/util/AutoRegisterProcessor.class

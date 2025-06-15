@@ -11,10 +11,25 @@ import ghidra.util.exception.CancelledException;
 import ghidra.util.exception.DuplicateNameException;
 import ghidra.util.task.TaskMonitor;
 import ghidranes.NesRom;
+import ghidranes.util.AutoRegister;
 import ghidranes.util.Bank;
 import ghidranes.util.MemoryBlockDescription;
 
+@AutoRegister
 public class MMC1Mapper extends NesMapper {
+    public static boolean handlesMapper(int mapperNumber) {
+        switch (mapperNumber) {
+			// 16K bankable PRG ROM
+			case 1:		// MMC1 - SxROM
+			case 2:		// UxROM
+			case 10:	// MMC4 - FxROM
+			case 16,30,67,68:
+				return true;
+			default:
+				return false;
+		}
+    }
+
 	@Override
 	public void mapPrgRom(NesRom rom, Program program, TaskMonitor monitor) throws LockException, MemoryConflictException, AddressOverflowException, CancelledException, DuplicateNameException {
 		int sramPermissions =
