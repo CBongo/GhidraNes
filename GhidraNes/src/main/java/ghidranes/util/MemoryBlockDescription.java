@@ -31,6 +31,13 @@ public class MemoryBlockDescription {
 	boolean overlay;
 	TaskMonitor monitor;
 
+	public enum MemoryBlockType {
+		INITIALIZED,
+		UNINITIALIZED,
+		BIT_MAPPED,
+		BYTE_MAPPED,
+	}
+
 	MemoryBlockDescription() {
 
 	}
